@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- 优化1：强化视口设置，确保移动端适配核心 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>地铁遍历站点 - 少儿编程小课堂</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "微软雅黑", "幼圆", sans-serif;
+        }
+
+        /* 优化2：定义根字体大小，配合rem适配（1rem=10vw，小屏幕限制最小值） */
+        :root {
+            font-size: calc(10px + 0.5vw); 
+        }
+
+        body {
+            background-color: #f0f8ff;
+            padding: 2vw; /* 替换固定20px为视口单位，适配不同屏幕 */
+            min-width: 320px; /* 限制最小宽度，避免超小屏幕挤塞 */
+        }
+
+        /* 标题和讲解区 - 响应式优化 */
+        .header {
+            text-align: center;
+            margin-bottom: 4vw; /* 替换固定30px为vw */
+            padding: 0 2vw;
+        }
+
+        .header h1 {
+            color: #e63946;
+            font-size: calc(1.8rem + 1vw); /* 动态字体，随屏幕缩放 */
+            margin-bottom: 1.5vw;
+            line-height: 1.2; /* 小屏幕文字不重叠 */
+        }
+
+        .header .explain {
+            font-size: 1rem; /* 相对字体单位 */
+            color: #457b9d;
+            line-height: 1.6;
+            max-width: 90%; /* 替换固定800px为百分比，适配小屏幕 */
+            margin: 0 auto;
+        }
+
+        .header .explain code {
+            background-color: #fff3cd;
+            color: #b8860b;
+            padding: 0.1em 0.4em;
+            border-radius: 4px;
+            font-family: "Consolas", "Courier New", monospace;
+            font-weight: bold;
+        }
+
+        /* Python 代码展示区 - 让孩子看代码和动画一起运行 */
+        .code-panel {
+            width: 95%;
+            max-width: 1000px;
+            margin: 3vw auto;
+            background-color: #282c34;
+            border-radius: 10px;
+            padding: clamp(14px, 2vw, 22px);
+            box-shadow: 0 0.4vw 0.8vw rgba(0,0,0,0.25);
+            overflow-x: auto;
+        }
+        .code-panel .code-title {
+            color: #98c379;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: clamp(13px, 1.4vw, 15px);
+            margin-bottom: 0.8vw;
+            opacity: 0.8;
+        }
+        .code-line {
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: clamp(14px, 1.6vw, 18px);
+            line-height: 1.8;
+            color: #abb2bf;
+            padding: 2px 8px;
+            border-radius: 5px;
+            white-space: pre;
+            transition: background-color 0.3s ease;
+        }
+        /* 正在运行的代码行高亮 */
+        .code-line.active {
+            background-color: #e5c07b;
+            color: #282c34;
+            font-weight: bold;
+        }
+        .code-line .kw { color: #c678dd; }      /* 关键字 for in */
+        .code-line .var { color: #e06c75; }     /* 变量名 */
+        .code-line .fn { color: #61afef; }      /* print */
+        .code-line .str { color: #98c379; }     /* 字符串 */
+        .code-line.active .kw,
+        .code-line.active .var,
+        .code-line.active .fn,
+        .code-line.active .str { color: #282c34; }
+
+        /* Python 控制台输出区 */
+        .output-panel {
+            width: 95%;
+            max-width: 1000px;
+            margin: 2vw auto;
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: clamp(12px, 1.8vw, 18px);
+            min-height: 60px;
+        }
+        .output-title {
+            color: #888;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: clamp(12px, 1.3vw, 14px);
+            margin-bottom: 0.6vw;
+        }
+        .output-body {
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: clamp(14px, 1.6vw, 18px);
+            line-height: 1.8;
+            color: #4ec9b0;
+        }
+        .output-body .out-item {
+            opacity: 0;
+            animation: fadeIn 0.4s ease forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* 循环变量盒子 - 显示 station 每次拿到的值 */
+        .var-box {
+            width: 95%;
+            max-width: 1000px;
+            margin: 2vw auto;
+            background-color: #fff8e6;
+            border: 3px dashed #e5a12b;
+            border-radius: 12px;
+            padding: clamp(12px, 1.8vw, 18px);
+            text-align: center;
+            font-size: clamp(15px, 1.8vw, 20px);
+            color: #7a5200;
+            line-height: 1.5;
+        }
+        .var-box code {
+            background-color: #e5a12b;
+            color: #fff;
+            padding: 0.1em 0.4em;
+            border-radius: 5px;
+            font-family: "Consolas", "Courier New", monospace;
+        }
+        .var-box .var-value {
+            display: inline-block;
+            min-width: 3em;
+            background-color: #e63946;
+            color: #fff;
+            padding: 0.1em 0.6em;
+            border-radius: 8px;
+            font-weight: bold;
+            font-family: "微软雅黑", sans-serif;
+            transition: transform 0.3s ease;
+        }
+        .var-box .var-value.pop {
+            transform: scale(1.25);
+        }
+
+        /* “下一步”单步按钮 */
+        .step-btn { background-color: #6a4c93; color: #fff; }
+
+        /* 试一试：可编辑站点列表 */
+        .playground {
+            width: 95%;
+            max-width: 1000px;
+            margin: 4vw auto 2vw;
+            background-color: #eef6ff;
+            border-radius: 12px;
+            padding: clamp(14px, 2vw, 22px);
+        }
+        .playground h2 {
+            color: #1d6fb8;
+            font-size: clamp(16px, 1.9vw, 20px);
+            margin-bottom: 1vw;
+        }
+        .playground p {
+            color: #457b9d;
+            font-size: clamp(13px, 1.5vw, 15px);
+            line-height: 1.6;
+            margin-bottom: 1.2vw;
+        }
+        .playground textarea {
+            width: 100%;
+            min-height: 120px;
+            border: 2px solid #a8cdf0;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: clamp(14px, 1.6vw, 17px);
+            font-family: "微软雅黑", sans-serif;
+            line-height: 1.7;
+            resize: vertical;
+            color: #264653;
+        }
+        .playground textarea:focus {
+            outline: none;
+            border-color: #1d6fb8;
+        }
+        .playground .apply-btn {
+            margin-top: 1.2vw;
+            background-color: #2a9d8f;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: clamp(10px, 1.5vw, 12px) clamp(20px, 2.5vw, 26px);
+            font-size: clamp(14px, 1.6vw, 17px);
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .playground .apply-btn:active { transform: scale(1.05); }
+        .playground .hint {
+            margin-top: 1vw;
+            font-size: clamp(12px, 1.4vw, 14px);
+            color: #e07a1f;
+            min-height: 1.4em;
+        }
+
+        /* 地铁轨道容器 - 核心响应式优化 */
+        .metro-container {
+            position: relative;
+            width: 95%; /* 增大适配范围，替换90% */
+            max-width: 1000px; /* 限制大屏最大值 */
+            min-width: 300px; /* 限制小屏最小值 */
+            /* 优化3：高度用vw，最小180px，最大220px，适配不同屏幕 */
+            height: clamp(180px, 18vw, 220px); 
+            margin: 5vw auto; /* 替换固定50px为vw */
+            background-color: #fff;
+            border-radius: 1vw; /* 圆角随屏幕缩放 */
+            padding: 2vw;
+            box-shadow: 0 0.4vw 0.8vw rgba(0,0,0,0.1); /* 阴影随屏幕缩放 */
+            overflow: hidden; /* 防止小屏幕元素溢出 */
+        }
+
+        /* 轨道样式 - 响应式优化 */
+        .track {
+            position: absolute;
+            top: 50%; /* 改为相对定位，垂直居中 */
+            transform: translateY(-50%); /* 精准居中 */
+            left: 4vw; /* 替换固定50px为vw */
+            right: 4vw;
+            height: 0.8vw; /* 轨道高度随屏幕缩放 */
+            min-height: 6px; /* 小屏幕不致过细 */
+            background-color: #ccc;
+            border-radius: 0.4vw;
+        }
+
+        .track::before {
+            content: "";
+            position: absolute;
+            top: -0.2vw;
+            left: 0;
+            right: 0;
+            height: 0.4vw;
+            min-height: 3px;
+            background-color: #999;
+            border-radius: 0.2vw;
+        }
+
+        /* 地铁样式 - 响应式优化 */
+        .metro {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%); /* 垂直居中，适配不同容器高度 */
+            left: 2vw; /* 替换固定30px为vw */
+            /* 地铁大小随屏幕缩放，最小40px，最大60px */
+            width: clamp(40px, 8vw, 60px);
+            height: clamp(40px, 8vw, 60px);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Crect x='5' y='10' width='50' height='40' rx='5' fill='%23e63946'/%3E%3Crect x='10' y='15' width='40' height='30' rx='3' fill='%23fff'/%3E%3Ccircle cx='20' cy='30' r='5' fill='%23457b9d'/%3E%3Ccircle cx='40' cy='30' r='5' fill='%23457b9d'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+            transition: left 1s ease-in-out;
+            z-index: 10;
+        }
+
+        /* 站点样式 - 响应式核心优化 */
+        .stations {
+            position: absolute;
+            top: calc(50% + 2vw); /* 相对轨道下方，随屏幕缩放 */
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 2vw; /* 替换固定30px为vw */
+            flex-wrap: nowrap; /* 禁止换行，保证站点排列 */
+        }
+
+        .station {
+            /* 站点大小随屏幕缩放，最小40px，最大60px */
+            width: clamp(40px, 8vw, 60px);
+            height: clamp(40px, 8vw, 60px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ddd;
+            color: #666;
+            font-weight: bold;
+            /* 站点文字响应式，最小10px，最大14px */
+            font-size: clamp(10px, 1.2vw, 14px);
+            transition: all 0.5s ease;
+            padding: 0.5vw;
+            word-break: break-all; /* 小屏幕文字换行，不溢出 */
+            line-height: 1.2; /* 换行后行高适配 */
+            touch-action: manipulation; /* 优化移动端触摸操作 */
+        }
+
+        /* 站点状态样式继承 */
+        .station.current {
+            background-color: #e63946;
+            color: #fff;
+            transform: scale(1.2);
+            box-shadow: 0 0 1vw #e63946; /* 阴影随屏幕缩放 */
+        }
+        .station.completed {
+            background-color: #457b9d;
+            color: #fff;
+        }
+
+        /* 进度条样式 - 响应式优化 */
+        .progress-container {
+            width: 95%; /* 匹配地铁容器宽度 */
+            max-width: 1000px;
+            margin: 2vw auto; /* 替换固定20px为vw */
+            text-align: center;
+        }
+        .progress-bar-wrap {
+            width: 100%;
+            /* 进度条高度响应式 */
+            height: clamp(16px, 2vw, 20px);
+            background-color: #eee;
+            border-radius: 1vw;
+            overflow: hidden;
+            margin-bottom: 1vw; /* 替换固定8px为vw */
+            box-shadow: inset 0 0.2vw 0.4vw rgba(0,0,0,0.1);
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #e63946;
+            border-radius: 1vw;
+            transition: width 1s ease-in-out;
+        }
+        .progress-text {
+            font-size: clamp(14px, 1.5vw, 16px); /* 文字响应式 */
+            color: #264653;
+            font-weight: bold;
+        }
+
+        /* 按钮区 - 响应式+触摸优化 */
+        .btn-group {
+            text-align: center;
+            margin: 4vw 0; /* 替换固定30px为vw */
+            padding: 0 2vw;
+        }
+
+        .btn {
+            /* 按钮内边距响应式，移动端更大 */
+            padding: clamp(10px, 1.5vw, 12px) clamp(20px, 2.5vw, 24px);
+            margin: 0 clamp(8px, 1vw, 10px); /* 间距响应式 */
+            border: none;
+            border-radius: 1vw; /* 圆角随屏幕缩放 */
+            /* 按钮字体响应式 */
+            font-size: clamp(14px, 1.5vw, 16px);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            touch-action: manipulation; /* 取消移动端触摸延迟 */
+            min-width: clamp(80px, 15vw, 120px); /* 按钮最小宽度，保证触摸区域 */
+        }
+
+        /* 按钮样式继承 */
+        .start-btn { background-color: #2a9d8f; color: #fff; }
+        .pause-btn { background-color: #e9c46a; color: #333; }
+        .reset-btn { background-color: #f4a261; color: #fff; }
+        .btn:hover, .btn:active { opacity: 0.9; transform: scale(1.05); }
+
+        /* 提示区 - 响应式优化 */
+        .tip {
+            text-align: center;
+            font-size: clamp(16px, 1.8vw, 18px); /* 文字响应式 */
+            color: #264653;
+            margin: 2vw 0; /* 替换固定20px为vw */
+            min-height: 2.4vw;
+            padding: 0 2vw;
+            line-height: 1.6;
+        }
+
+        /* 完成弹窗 - 核心响应式优化 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 2vw; /* 防止弹窗溢出屏幕 */
+        }
+
+        .modal-content {
+            background-color: #fff;
+            padding: clamp(20px, 4vw, 30px); /* 内边距响应式 */
+            border-radius: 1.5vw;
+            /* 弹窗宽度：移动端90%，大屏最大500px */
+            width: clamp(90%, 500px, 90%);
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 0.5vw 1vw rgba(0,0,0,0.2);
+        }
+
+        .modal-content h3 {
+            color: #e63946;
+            margin-bottom: 2vw;
+            font-size: clamp(18px, 2vw, 22px);
+        }
+
+        .modal-content p {
+            font-size: clamp(14px, 1.5vw, 16px);
+            line-height: 1.8;
+            color: #333;
+            margin-bottom: 2vw;
+        }
+
+        .modal-content code {
+            background-color: #282c34;
+            color: #e5c07b;
+            padding: 0.1em 0.4em;
+            border-radius: 4px;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 0.95em;
+        }
+
+        .close-btn {
+            padding: clamp(8px, 1.2vw, 10px) clamp(18px, 2vw, 20px);
+            background-color: #2a9d8f;
+            color: #fff;
+            border: none;
+            border-radius: 1vw;
+            cursor: pointer;
+            font-size: clamp(14px, 1.5vw, 16px);
+            min-width: clamp(80px, 12vw, 100px);
+            touch-action: manipulation;
+        }
+
+        /* 优化4：媒体查询 - 针对小屏幕（手机）专项优化 */
+        @media (max-width: 768px) {
+            /* 手机端地铁容器间距更小 */
+            .metro-container {
+                margin: 3vw auto;
+                height: clamp(160px, 22vw, 200px);
+            }
+            /* 手机端站点间距缩小，避免挤塞 */
+            .stations {
+                padding: 0 1vw;
+            }
+            /* 手机端按钮换行，避免横向挤塞 */
+            .btn-group {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 2vw; /* 按钮间距更友好 */
+            }
+            .btn {
+                margin: 0; /* 取消左右margin，用gap控制 */
+            }
+            /* 手机端提示文字更紧凑 */
+            .tip {
+                margin: 1.5vw 0;
+            }
+            /* 手机端弹窗内边距更大，提升触摸体验 */
+            .modal-content {
+                padding: clamp(25px, 5vw, 35px);
+            }
+        }
+
+        /* 优化5：平板适配（768-1024px） */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .metro-container {
+                height: clamp(180px, 16vw, 210px);
+            }
+            .btn {
+                min-width: clamp(100px, 12vw, 110px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 标题和讲解区 -->
+    <div class="header">
+        <h1>Python 的“遍历”之旅 🚇</h1>
+        <div class="explain">
+            小朋友们，在 Python 里，把很多东西装在一起叫<strong>列表(list)</strong>，比如把6个地铁站装成一个列表。<br>
+            用 <code>for</code> 循环把列表里的东西<strong>一个一个拿出来</strong>，不跳过、不重复，这就叫<strong>遍历</strong>！<br>
+            点击“开始遍历”，一边看地铁跑，一边看下面的 Python 代码是怎么一句一句运行的吧～
+        </div>
+    </div>
+
+    <!-- 地铁轨道可视化区 -->
+    <div class="metro-container">
+        <div class="track"></div>
+        <div class="metro" id="metro"></div>
+        <div class="stations" id="stations"></div>
+    </div>
+
+    <!-- Python 代码展示区 -->
+    <div class="code-panel">
+        <div class="code-title"># 这就是遍历列表的 Python 代码，看它一句一句地运行 👇</div>
+        <div class="code-line" id="codeLine0"><span class="var">stations</span> = [<span class="str">"望京西站"</span>, <span class="str">"人民广场站"</span>, <span class="str">"公园站"</span>, <span class="str">"学校站"</span>, <span class="str">"游乐园站"</span>, <span class="str">"未来城站"</span>]</div>
+        <div class="code-line" id="codeLine1"><span class="kw">for</span> <span class="var">station</span> <span class="kw">in</span> <span class="var">stations</span>:</div>
+        <div class="code-line" id="codeLine2">    <span class="fn">print</span>(<span class="var">station</span>)<span style="color:#5c6370">   # 到达这一站</span></div>
+    </div>
+
+    <!-- 循环变量盒子：让孩子看见 station 每次拿到哪个值 -->
+    <div class="var-box">
+        每一次循环，变量 <code>station</code> 就会拿到列表里的一个值：<br>
+        <code>station</code> = <span class="var-value" id="varValue">还没开始</span>
+    </div>
+
+    <!-- Python 控制台输出区 -->
+    <div class="output-panel">
+        <div class="output-title">💻 Python 控制台输出（print 打印的内容）：</div>
+        <div class="output-body" id="outputBody"></div>
+    </div>
+
+    <!-- 进度条DOM -->
+    <div class="progress-container">
+        <div class="progress-bar-wrap">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-text" id="progressText">当前进度：0/6</div>
+    </div>
+
+    <!-- 交互按钮区 -->
+    <div class="btn-group">
+        <button class="btn start-btn" id="startBtn">自动遍历</button>
+        <button class="btn step-btn" id="stepBtn">下一步 ▶</button>
+        <button class="btn pause-btn" id="pauseBtn" disabled>暂停</button>
+        <button class="btn reset-btn" id="resetBtn">重置</button>
+    </div>
+
+    <!-- 实时提示区 -->
+    <div class="tip" id="tip">准备好开始地铁的遍历之旅啦！先点“下一步”，看看 for 循环怎么一步一步走～</div>
+
+    <!-- 试一试：让孩子改列表，体验“改了列表，遍历就变了” -->
+    <div class="playground">
+        <h2>🛠️ 试一试：换成你自己的站点</h2>
+        <p>遍历不只能走地铁站，它能把<strong>任何列表</strong>一个一个走完。<br>
+        每一行写一个站点名字，改完点“换上我的列表”，再点“下一步”看看变化。想一想：如果你写 8 个站，for 循环会走几次？</p>
+        <textarea id="stationInput">望京西站
+人民广场站
+公园站
+学校站
+游乐园站
+未来城站</textarea>
+        <br>
+        <button class="apply-btn" id="applyBtn">换上我的列表</button>
+        <div class="hint" id="playHint"></div>
+    </div>
+
+    <!-- 完成弹窗 -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h3>🎉 遍历完成啦！</h3>
+            <p><code>for station in stations:</code> 把列表里的站点<strong>一个一个取出来</strong>，每取一个，变量 <code>station</code> 就换成那一站，再用 <code>print</code> 打印一次，一个不落——这就是 Python 的<strong>“遍历”</strong>！<br>
+            记住口诀：<strong>for 循环 = 一个一个拿，不跳过、不重复、不遗漏</strong>。<br>
+            🤔 想一想：如果列表里有 20 个站点，for 循环会走几次？打印几行？</p>
+            <button class="close-btn" id="closeBtn">我懂啦！</button>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const metro = document.getElementById('metro');
+        const stationsWrap = document.getElementById('stations');
+        const startBtn = document.getElementById('startBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const tip = document.getElementById('tip');
+        const modal = document.getElementById('modal');
+        const closeBtn = document.getElementById('closeBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const codeLine0 = document.getElementById('codeLine0'); // stations = [...] 行
+        const codeLine1 = document.getElementById('codeLine1'); // for 行
+        const codeLine2 = document.getElementById('codeLine2'); // print 行
+        const outputBody = document.getElementById('outputBody');
+        const varValue = document.getElementById('varValue');
+        const stationInput = document.getElementById('stationInput');
+        const applyBtn = document.getElementById('applyBtn');
+        const playHint = document.getElementById('playHint');
+
+        // 站点名字列表（就是 Python 里的 stations 列表）
+        let stationNames = ['望京西站', '人民广场站', '公园站', '学校站', '游乐园站', '未来城站'];
+        let stations = []; // 页面上的站点圆圈
+
+        // 根据 stationNames 重新画出所有站点圆圈
+        function renderStations() {
+            stationsWrap.innerHTML = '';
+            stationNames.forEach((name, index) => {
+                const div = document.createElement('div');
+                div.className = 'station';
+                div.setAttribute('data-index', index);
+                div.textContent = name;
+                stationsWrap.appendChild(div);
+            });
+            stations = stationsWrap.querySelectorAll('.station');
+            totalStations = stations.length;
+            renderCodeList();
+        }
+
+        // 把 stations = [...] 这行代码同步成当前列表
+        function renderCodeList() {
+            const items = stationNames
+                .map(n => `<span class="str">"${n}"</span>`)
+                .join(', ');
+            codeLine0.innerHTML = `<span class="var">stations</span> = [${items}]`;
+        }
+
+        // 高亮正在“运行”的代码行
+        function highlightCode(line) {
+            codeLine1.classList.remove('active');
+            codeLine2.classList.remove('active');
+            if (line === 'for') codeLine1.classList.add('active');
+            if (line === 'print') codeLine2.classList.add('active');
+        }
+
+        // 更新循环变量盒子：station 现在拿到哪个值
+        function updateVarBox(text) {
+            varValue.textContent = text;
+            varValue.classList.remove('pop');
+            void varValue.offsetWidth; // 触发重新动画
+            varValue.classList.add('pop');
+        }
+
+        // 模拟 print 在控制台打印一行
+        function printToConsole(text) {
+            const item = document.createElement('div');
+            item.className = 'out-item';
+            item.textContent = text;
+            outputBody.appendChild(item);
+        }
+
+        // 清空控制台
+        function clearConsole() {
+            outputBody.innerHTML = '';
+            highlightCode(null);
+        }
+
+        // 全局变量
+        let currentStationIndex = 0;
+        let totalStations = stations.length;
+        let isPaused = false;
+        let started = false;
+        let traverseInterval;
+        let stationPositions = [];
+
+        // 优化6：动态计算站点位置 - 适配不同屏幕，窗口变化时重新计算
+        function initStationPositions() {
+            stationPositions = [];
+            const container = document.querySelector('.metro-container');
+            const containerRect = container.getBoundingClientRect();
+            // 防抖：避免窗口resize时频繁计算
+            clearTimeout(initStationPositions.timer);
+            initStationPositions.timer = setTimeout(() => {
+                stations.forEach((station, index) => {
+                    const rect = station.getBoundingClientRect();
+                    // 相对容器的位置计算，适配任意屏幕
+                    const left = rect.left - containerRect.left + (station.offsetWidth / 2) - (metro.offsetWidth / 2);
+                    stationPositions.push(left);
+                });
+                // 重新初始化地铁位置，确保适配
+                if (currentStationIndex === 0) {
+                    metro.style.left = `${stationPositions[0]}px`;
+                }
+            }, 50);
+        }
+
+        // 更新进度条函数
+        function updateProgress() {
+            // 还没开始时显示 0，避免让孩子以为已经走了第 1 站
+            if (!started) {
+                progressBar.style.width = '0%';
+                progressText.textContent = `当前进度：0/${totalStations}`;
+                return;
+            }
+            const progressPercent = ((currentStationIndex + 1) / totalStations) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            progressText.textContent = `当前进度：${currentStationIndex + 1}/${totalStations} ${stationNames[currentStationIndex]}`;
+        }
+
+        // 初始化页面
+        function init() {
+            // 确保站点位置已计算
+            if (stationPositions.length === 0) {
+                initStationPositions();
+            }
+            metro.style.left = `${stationPositions[0]}px`;
+            stations.forEach((station, index) => {
+                station.classList.remove('current', 'completed');
+            });
+            updateProgress();
+            tip.textContent = "准备好开始遍历啦！点“下一步”一格一格走，或点“自动遍历”让它自己跑～";
+            startBtn.disabled = false;
+            stepBtn.disabled = false;
+            pauseBtn.disabled = true;
+            isPaused = false;
+            started = false;
+            currentStationIndex = 0;
+            clearInterval(traverseInterval);
+            clearConsole();
+            updateVarBox('还没开始');
+            varValue.classList.remove('pop');
+            modal.style.display = 'none';
+        }
+
+        // 到达某一站：高亮代码、更新变量盒、打印、移动地铁
+        function arriveAt(index) {
+            metro.style.left = `${stationPositions[index]}px`;
+            stations[index].classList.add('current');
+            highlightCode('for');
+            setTimeout(() => {
+                highlightCode('print');
+                updateVarBox(stationNames[index]);
+                printToConsole(stationNames[index]);
+            }, 400);
+            tip.textContent = `for 循环第${index + 1}次：station 拿到「${stationNames[index]}」，print 把它打印出来！`;
+            updateProgress();
+        }
+
+        // 遍历结束
+        function finishTraverse() {
+            clearInterval(traverseInterval);
+            highlightCode(null);
+            tip.textContent = `列表里的 ${totalStations} 个站点都取完啦，for 循环结束，遍历完成～`;
+            startBtn.disabled = true;
+            stepBtn.disabled = true;
+            pauseBtn.disabled = true;
+            modal.style.display = 'flex';
+        }
+
+        // 单步执行：点一次“下一步”走一格
+        function stepOnce() {
+            if (!started) {
+                started = true;
+                currentStationIndex = 0;
+                clearConsole();
+                arriveAt(0);
+                return;
+            }
+            stations[currentStationIndex].classList.remove('current');
+            stations[currentStationIndex].classList.add('completed');
+            currentStationIndex++;
+            if (currentStationIndex >= totalStations) {
+                finishTraverse();
+                return;
+            }
+            arriveAt(currentStationIndex);
+        }
+
+        // 自动遍历
+        function startTraverse() {
+            currentStationIndex = 0;
+            isPaused = false;
+            started = true;
+            pauseBtn.textContent = "暂停";
+
+            stations.forEach(station => station.classList.remove('current', 'completed'));
+
+            startBtn.disabled = true;
+            stepBtn.disabled = true;
+            pauseBtn.disabled = false;
+
+            clearConsole();
+            arriveAt(0); // 第一站
+
+            clearInterval(traverseInterval);
+            traverseInterval = setInterval(() => {
+                if (isPaused) return;
+
+                stations[currentStationIndex].classList.remove('current');
+                stations[currentStationIndex].classList.add('completed');
+
+                currentStationIndex++;
+                if (currentStationIndex >= totalStations) {
+                    finishTraverse();
+                    return;
+                }
+                arriveAt(currentStationIndex);
+            }, 2000);
+        }
+
+        // 暂停遍历
+        function pauseTraverse() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseBtn.textContent = "继续";
+                tip.textContent = `地铁暂停在【${stations[currentStationIndex].textContent}】啦，点击“继续”可以继续遍历～`;
+            } else {
+                pauseBtn.textContent = "暂停";
+                tip.textContent = `地铁继续前进啦，现在在【${stations[currentStationIndex].textContent}】！`;
+            }
+        }
+
+        // 换上孩子自己写的站点列表
+        function applyNewStations() {
+            const names = stationInput.value
+                .split('\n')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            if (names.length < 2) {
+                playHint.textContent = "至少要写 2 个站点哦，遍历才有意思～";
+                return;
+            }
+            if (names.length > 10) {
+                playHint.textContent = "站点太多啦，先写 10 个以内，屏幕才放得下～";
+                return;
+            }
+
+            stationNames = names;
+            renderStations();
+            stationPositions = []; // 位置需要重新算
+            initStationPositions();
+            setTimeout(init, 80); // 等位置算好再复位
+            playHint.textContent = `换好啦！现在列表里有 ${names.length} 个站点，for 循环会走 ${names.length} 次。点“下一步”试试吧～`;
+        }
+
+        // 绑定窗口事件，适配屏幕变化
+        window.addEventListener('load', () => {
+            renderStations();
+            initStationPositions();
+            init();
+
+            startBtn.addEventListener('click', startTraverse);
+            stepBtn.addEventListener('click', stepOnce);
+            pauseBtn.addEventListener('click', pauseTraverse);
+            resetBtn.addEventListener('click', init);
+            applyBtn.addEventListener('click', applyNewStations);
+            closeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            // 窗口大小变化/旋转时，重新计算站点位置
+            window.addEventListener('resize', initStationPositions);
+            // 移动端屏幕旋转事件
+            window.addEventListener('orientationchange', initStationPositions);
+        });
+    </script>
+</body>
+</html>
